@@ -1,4 +1,5 @@
 import express from 'express';
+import { errorHandler } from './middlewares/errors';
 
 const app = express();
 
@@ -6,5 +7,8 @@ const app = express();
 app.get('/', (req, res) => {
 	res.send('Server response test');
 });
+
+// Error handling
+app.use(errorHandler);
 
 export default app;

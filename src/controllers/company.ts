@@ -5,7 +5,13 @@ import { jobsInProgress } from '../app';
 export const getCompany: RequestHandler = async (req, res, next) => {
 	const siren = req.params.siren;
 
-	// Making sure API_KEY is known
+	// Make sure siren is 9 digits
+	const regex = new RegExp(/^\d{9}$/);
+	if (!regex.test(siren)) {
+		return res.status(400).json({ error: 'SIREN parameter must be 9 digits' });
+	}
+
+	// Make sure API_KEY is known
 	if (!process.env.API_KEY) {
 		return next(new Error('API key is required'));
 	}

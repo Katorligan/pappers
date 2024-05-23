@@ -1,5 +1,6 @@
 import { RequestHandler } from 'express';
 import { Company } from '../types/types';
+import { jobsInProgress } from '../app';
 
 export const getCompany: RequestHandler = async (req, res, next) => {
 	const siren = req.params.siren;
@@ -10,13 +11,29 @@ export const getCompany: RequestHandler = async (req, res, next) => {
 	}
 
 	try {
-		const company: Company = await fetchCompany(siren);
+		// Create job ID and add it to jobsInProgress Set
+		const jobID = 'cy_' + siren + '_' + Date.now();
+		jobsInProgress.add(jobID);
 
-		return res.status(200).json(JSON.stringify(company));
+		// Process request, once request is done delete ID from jobsInProgress and log to server
+		processCompanyRequest(siren).finally(() => {
+			jobsInProgress.delete(jobID);
+			console.log('Job ' + jobID + ' is finished');
+		});
+
+		// Log job to server
+		console.log('New job started with ID : ' + jobID);
+
+		return res.status(200).json({ message: 'Job started with ID : ' + jobID });
 	} catch (err) {
 		next(err);
 	}
 };
+
+// Process company request : fetch company [to be added : query every company linked to each person in the company, send data to webhook]
+async function processCompanyRequest(siren: string) {
+	const company: Company = await fetchCompany(siren);
+}
 
 // Fetch company on Pappers API using siren
 async function fetchCompany(siren: string) {

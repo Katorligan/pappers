@@ -85,7 +85,10 @@ async function searchLinkedCompanies(person: Person) {
 	if (person.personne_morale) {
 		queryParam = `q=${person.denomination}&siren=${person.siren}`;
 	} else {
-		queryParam = `q=${person.nom_complet}&date_de_naissance_dirigeant_min=${person.date_de_naissance}&date_de_naissance_dirigeant_max=${person.date_de_naissance}`;
+		// Change birth date format from YYYY-MM-DD to DD-MM-YYYY to fit API query format
+		const birthDate = person.date_de_naissance?.split('-').reverse().join('-');
+
+		queryParam = `q=${person.nom_complet}&date_de_naissance_dirigeant_min=${birthDate}&date_de_naissance_dirigeant_max=${birthDate}`;
 	}
 
 	const response = await fetch(`https://api.pappers.fr/v2/recherche-dirigeants?api_token=${process.env.API_KEY}&precision=exacte&${queryParam}`);

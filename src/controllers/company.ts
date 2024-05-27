@@ -1,5 +1,5 @@
 import { RequestHandler } from 'express';
-import { Company } from '../types/types';
+import { Company, Person } from '../types/types';
 import { jobsInProgress } from '../app';
 
 export const getCompany: RequestHandler = async (req, res, next) => {
@@ -17,15 +17,20 @@ export const getCompany: RequestHandler = async (req, res, next) => {
 	}
 
 	try {
-		// Create job ID and add it to jobsInProgress Set
+		// Create unique job ID and add it to jobsInProgress Set
 		const jobID = 'cy_' + siren + '_' + Date.now();
 		jobsInProgress.add(jobID);
 
-		// Process request, once request is done delete ID from jobsInProgress and log to server
-		processCompanyRequest(siren).finally(() => {
-			jobsInProgress.delete(jobID);
-			console.log('Job ' + jobID + ' is finished');
-		});
+		// Process request, once request is done delete ID from jobsInProgress and log to server.
+		processCompanyRequest(siren)
+			.catch((err) => {
+				console.log('Job ' + jobID + ' failed');
+				console.error(err);
+			})
+			.finally(() => {
+				jobsInProgress.delete(jobID);
+				console.log('Job ' + jobID + ' is finished');
+			});
 
 		// Log job to server
 		console.log('New job started with ID : ' + jobID);
@@ -38,14 +43,66 @@ export const getCompany: RequestHandler = async (req, res, next) => {
 
 // Process company request : fetch company [to be added : query every company linked to each person in the company, send data to webhook]
 async function processCompanyRequest(siren: string) {
-	const company: Company = await fetchCompany(siren);
+	const company = await fetchCompany(siren);
+
+	if (!company) {
+		throw new Error('Something went wrong while fetching company');
+	}
+
+	company.representants.forEach(async (person) => {
+		const linkedCompanies = await searchLinkedCompanies(person);
+
+		if (!linkedCompanies) {
+			throw new Error('Something went wrong while searching for linked companies');
+		}
+	});
 }
 
 // Fetch company on Pappers API using siren
 async function fetchCompany(siren: string) {
 	const response = await fetch(`https://api.pappers.fr/v2/entreprise?api_token=${process.env.API_KEY}&siren=${siren}`);
 
-	const company: Company = await response.json();
+	// Check response status according to Pappers API doc
+	if (response.status === 200 || response.status === 206) {
+		const company: Company = await response.json();
 
-	return company;
+		return company;
+	} else if (response.status === 400) {
+		console.log('Bad request');
+	} else if (response.status === 401) {
+		console.log('API key is incorrect');
+	} else if (response.status === 404) {
+		console.log('No company found');
+	} else {
+		console.log('Unknown error occured');
+	}
+}
+
+// Search person on Pappers API and return all companies linked to this person
+async function searchLinkedCompanies(person: Person) {
+	// Create query according to juridical person or physical person
+	let queryParam: string;
+	if (person.personne_morale) {
+		queryParam = `q=${person.denomination}&siren=${person.siren}`;
+	} else {
+		queryParam = `q=${person.nom_complet}&date_de_naissance_dirigeant_min=${person.date_de_naissance}&date_de_naissance_dirigeant_max=${person.date_de_naissance}`;
+	}
+
+	const response = await fetch(`https://api.pappers.fr/v2/recherche-dirigeants?api_token=${process.env.API_KEY}&precision=exacte&${queryParam}`);
+
+	// Check response status according to Pappers API doc
+	if (response.status === 200) {
+		const data = await response.json();
+		const linkedCompanies: Company[] = data.resultats[0].entreprises;
+
+		return linkedCompanies;
+	} else if (response.status === 401) {
+		console.log('API key is incorrect');
+	} else if (response.status === 404) {
+		console.log('No person found');
+	} else if (response.status === 503) {
+		console.log('Service momentarily unavailable');
+	} else {
+		console.log('Unknown error occured');
+	}
 }

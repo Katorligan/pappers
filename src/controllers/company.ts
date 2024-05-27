@@ -49,6 +49,7 @@ async function processCompanyRequest(siren: string) {
 		throw new Error('Something went wrong while fetching company');
 	}
 
+	// For each person in the company, search for all linked companies
 	company.representants.forEach(async (person) => {
 		const linkedCompanies = await searchLinkedCompanies(person);
 

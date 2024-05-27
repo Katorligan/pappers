@@ -41,7 +41,7 @@ export const getCompany: RequestHandler = async (req, res, next) => {
 	}
 };
 
-// Process company request : fetch company [to be added : query every company linked to each person in the company, send data to webhook]
+// Process company request : fetch company, for each person in the company search all linked companies [to be added : send data to webhook]
 async function processCompanyRequest(siren: string) {
 	const company = await fetchCompany(siren);
 
@@ -49,7 +49,6 @@ async function processCompanyRequest(siren: string) {
 		throw new Error('Something went wrong while fetching company');
 	}
 
-	// For each person in the company, search for all linked companies
 	company.representants.forEach(async (person) => {
 		const linkedCompanies = await searchLinkedCompanies(person);
 

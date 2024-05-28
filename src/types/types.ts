@@ -11,3 +11,25 @@ export interface Person {
 	nom_complet: string;
 	date_de_naissance?: string;
 }
+
+export interface OutputCompany {
+	name: string;
+	siren: string;
+}
+
+export interface OutputRepresentative {
+	name: string;
+	companies: OutputCompany[];
+}
+
+export class OutputData {
+	name: string;
+	siren: string;
+	representatives: OutputRepresentative[];
+
+	constructor(name: string, siren: string) {
+		this.name = name;
+		this.siren = siren;
+		this.representatives = [];
+	}
+}

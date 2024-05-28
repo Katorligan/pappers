@@ -1,5 +1,5 @@
 import { RequestHandler } from 'express';
-import { Company, Person } from '../types/types';
+import { Company, Person, OutputCompany, OutputRepresentative, OutputData } from '../types/types';
 import { jobsInProgress } from '../app';
 
 export const getCompany: RequestHandler = async (req, res, next) => {
@@ -49,13 +49,41 @@ async function processCompanyRequest(siren: string) {
 		throw new Error('Something went wrong while fetching company');
 	}
 
-	company.representants.forEach(async (person) => {
+	// Create data object that will be send to webhook
+	let outputData: OutputData = new OutputData(company.nom_entreprise, company.siren);
+
+	// For each physical person in the company add person and linked companies to output data object
+	for (const person of company.representants) {
+		if (person.personne_morale) {
+			continue;
+		}
+
 		const linkedCompanies = await searchLinkedCompanies(person);
 
 		if (!linkedCompanies) {
 			throw new Error('Something went wrong while searching for linked companies');
 		}
-	});
+
+		// Create linked companies object from fetched linked companies
+		const outputLinkedCompanies: OutputCompany[] = linkedCompanies.map((company) => {
+			const outputCompany: OutputCompany = {
+				name: company.nom_entreprise,
+				siren: company.siren,
+			};
+
+			return outputCompany;
+		});
+
+		const outputRepresentative: OutputRepresentative = {
+			name: person.nom_complet,
+			companies: outputLinkedCompanies,
+		};
+
+		// Add representative object to output data
+		outputData.representatives.push(outputRepresentative);
+	}
+
+	sendToWebhook(outputData);
 }
 
 // Fetch company on Pappers API using siren
@@ -80,22 +108,17 @@ async function fetchCompany(siren: string) {
 
 // Search person on Pappers API and return all companies linked to this person
 async function searchLinkedCompanies(person: Person) {
-	// Create query according to juridical person or physical person
-	let queryParam: string;
-	if (person.personne_morale) {
-		queryParam = `q=${person.denomination}&siren=${person.siren}`;
-	} else {
-		// Change birth date format from YYYY-MM-DD to DD-MM-YYYY to fit API query format
-		const birthDate = person.date_de_naissance?.split('-').reverse().join('-');
+	// Change birth date format from YYYY-MM-DD to DD-MM-YYYY to fit API query format
+	const birthDate = person.date_de_naissance?.split('-').reverse().join('-');
 
-		queryParam = `q=${person.nom_complet}&date_de_naissance_dirigeant_min=${birthDate}&date_de_naissance_dirigeant_max=${birthDate}`;
-	}
+	const queryParam = `q=${person.nom_complet}&date_de_naissance_dirigeant_min=${birthDate}&date_de_naissance_dirigeant_max=${birthDate}`;
 
 	const response = await fetch(`https://api.pappers.fr/v2/recherche-dirigeants?api_token=${process.env.API_KEY}&precision=exacte&${queryParam}`);
 
 	// Check response status according to Pappers API doc
 	if (response.status === 200) {
 		const data = await response.json();
+
 		const linkedCompanies: Company[] = data.resultats[0].entreprises;
 
 		return linkedCompanies;
@@ -108,4 +131,15 @@ async function searchLinkedCompanies(person: Person) {
 	} else {
 		console.log('Unknown error occured');
 	}
+}
+
+async function sendToWebhook(outputData: OutputData) {
+	// Post data to webhook
+	await fetch('https://webhook.site/a6d1539b-1366-4bfa-b3a4-9009cd85762b', {
+		method: 'POST',
+		headers: {
+			'content-type': 'application/json',
+		},
+		body: JSON.stringify(outputData),
+	});
 }

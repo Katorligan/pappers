@@ -1,0 +1,10 @@
+name: pappers
+
+services:
+    server:
+        build:
+            context: .
+        environment:
+            API_KEY: ${API_KEY}
+        ports:
+            - 3000:3000

@@ -4,13 +4,9 @@ This project is a Node.js / Express.js backend to interact with Pappers API.
 
 ## If you want to try it use :
 
-### `npm install`
+### `docker compose up`
 
-To install the dependencies.
-
-### `npm start`
-
-To start the server.
+To run the app on port 3000
 
 A Pappers API functioning key is needed in a .env file :
 `API_KEY='your_api_key'`

@@ -12,6 +12,11 @@ if (!process.env.API_KEY) {
 	throw new Error('API key is required');
 }
 
+// Make sure webhook URL is known
+if (!process.env.WEBHOOK) {
+	throw new Error('Webhook URL is required');
+}
+
 // App routes
 app.use('/company', companyRoutes);
 app.use('/jobs', jobRoutes);

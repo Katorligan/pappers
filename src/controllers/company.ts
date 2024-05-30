@@ -130,7 +130,7 @@ async function searchLinkedCompanies(person: Person) {
 
 async function sendToWebhook(outputData: OutputData) {
 	// Post data to webhook
-	await fetch('https://webhook.site/a6d1539b-1366-4bfa-b3a4-9009cd85762b', {
+	await fetch(process.env.WEBHOOK!, {
 		method: 'POST',
 		headers: {
 			'content-type': 'application/json',

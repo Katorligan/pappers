@@ -7,6 +7,11 @@ const app = express();
 
 export const jobsInProgress = new Set<string>();
 
+// Make sure API_KEY is known
+if (!process.env.API_KEY) {
+	throw new Error('API key is required');
+}
+
 // App routes
 app.use('/company', companyRoutes);
 app.use('/jobs', jobRoutes);

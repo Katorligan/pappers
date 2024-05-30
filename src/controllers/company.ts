@@ -11,11 +11,6 @@ export const getCompany: RequestHandler = async (req, res, next) => {
 		return res.status(400).json({ error: 'SIREN parameter must be 9 digits' });
 	}
 
-	// Make sure API_KEY is known
-	if (!process.env.API_KEY) {
-		return next(new Error('API key is required'));
-	}
-
 	try {
 		// Create unique job ID and add it to jobsInProgress Set
 		const jobID = 'cy_' + siren + '_' + Date.now();
